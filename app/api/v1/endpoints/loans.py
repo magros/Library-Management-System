@@ -2,6 +2,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.exc import DBAPIError
 
 from app.db.session import get_db
 from app.db.models import User, UserRole, LoanStatus
@@ -138,7 +139,10 @@ async def get_loan_endpoint(
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Get loan details."""
-    loan = await get_loan_by_id(db, loan_id)
+    try:
+        loan = await get_loan_by_id(db, loan_id)
+    except (DBAPIError, ValueError):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Loan not found")
     if not loan:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Loan not found")
 
@@ -184,5 +188,7 @@ async def update_loan_status_endpoint(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     except PermissionError as e:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
+    except DBAPIError:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Loan not found")
     return loan
 

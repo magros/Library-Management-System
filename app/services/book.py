@@ -10,8 +10,19 @@ from app.db.models import Book
 logger = get_logger("services.book")
 
 
+async def get_book_by_isbn(db: AsyncSession, isbn: str) -> Optional[Book]:
+    """Get a single book by ISBN."""
+    result = await db.execute(select(Book).where(Book.isbn == isbn))
+    return result.scalar_one_or_none()
+
+
 async def create_book(db: AsyncSession, data: dict, actor_id: str) -> Book:
     """Create a new book."""
+    if data.get("isbn"):
+        existing = await get_book_by_isbn(db, data["isbn"])
+        if existing:
+            raise ValueError(f"A book with ISBN '{data['isbn']}' already exists")
+
     data["available_copies"] = data.get("total_copies", 1)
 
     book = Book(**data)

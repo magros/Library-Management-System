@@ -2,6 +2,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.exc import DBAPIError, IntegrityError
 
 from app.db.session import get_db
 from app.db.models import User, UserRole
@@ -78,8 +79,13 @@ async def create_book_endpoint(
     """Create a book (Librarian/Admin)."""
     try:
         book = await create_book(db, data.model_dump(), current_user.id)
-    except Exception as e:
+    except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    except IntegrityError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"A book with ISBN '{data.isbn}' already exists",
+        )
     return book
 
 
@@ -100,7 +106,10 @@ async def get_book(
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Get book details."""
-    book = await get_book_by_id(db, book_id)
+    try:
+        book = await get_book_by_id(db, book_id)
+    except (DBAPIError, ValueError):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Book not found")
     if not book:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Book not found")
     return book
@@ -131,6 +140,8 @@ async def update_book_endpoint(
         book = await update_book(db, book_id, data.model_dump(exclude_unset=True), current_user.id)
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    except DBAPIError:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Book not found")
     if not book:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Book not found")
     return book
@@ -154,7 +165,9 @@ async def delete_book_endpoint(
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Delete a book (Admin only)."""
-    deleted = await delete_book(db, book_id, current_user.id)
+    try:
+        deleted = await delete_book(db, book_id, current_user.id)
+    except (DBAPIError, ValueError):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Book not found")
     if not deleted:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Book not found")
-

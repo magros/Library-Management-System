@@ -2,6 +2,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.exc import DBAPIError
 
 from app.db.session import get_db
 from app.db.models import User, UserRole
@@ -92,7 +93,10 @@ async def get_branch(
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Get branch details."""
-    branch = await get_branch_by_id(db, branch_id)
+    try:
+        branch = await get_branch_by_id(db, branch_id)
+    except (DBAPIError, ValueError):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Branch not found")
     if not branch:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Branch not found")
     return branch
@@ -118,7 +122,12 @@ async def update_branch_endpoint(
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Update a library branch (Librarian/Admin)."""
-    branch = await update_branch(db, branch_id, data.model_dump(exclude_unset=True), current_user.id)
+    try:
+        branch = await update_branch(db, branch_id, data.model_dump(exclude_unset=True), current_user.id)
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    except DBAPIError:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Branch not found")
     if not branch:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Branch not found")
     return branch
@@ -142,7 +151,9 @@ async def delete_branch_endpoint(
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Delete a library branch (Admin only)."""
-    deleted = await delete_branch(db, branch_id, current_user.id)
+    try:
+        deleted = await delete_branch(db, branch_id, current_user.id)
+    except (DBAPIError, ValueError):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Branch not found")
     if not deleted:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Branch not found")
-

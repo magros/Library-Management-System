@@ -2,6 +2,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.exc import DBAPIError
 
 from app.db.session import get_db
 from app.db.models import User, UserRole
@@ -64,7 +65,10 @@ async def get_user(
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Get user details (Admin only)."""
-    user = await get_user_by_id(db, user_id)
+    try:
+        user = await get_user_by_id(db, user_id)
+    except (DBAPIError, ValueError):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
     return user
@@ -96,6 +100,8 @@ async def update_user_endpoint(
         user = await update_user(db, user_id, update_data, current_user.id)
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    except DBAPIError:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
     return user
@@ -123,6 +129,7 @@ async def delete_user_endpoint(
         deleted = await delete_user(db, user_id, current_user.id)
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
+    except DBAPIError:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
     if not deleted:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
-
