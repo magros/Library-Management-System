@@ -110,8 +110,8 @@ library-management-api/
 1. **Clone the repository:**
 
    ```bash
-   git clone <repository-url>
-   cd python_project
+   git clone git@github.com:magros/Library-Management-System.git
+   cd Library-Management-System
    ```
 
 2. **Create a `.env` file** (or copy from example):
