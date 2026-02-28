@@ -474,4 +474,3 @@ The application seeds a built-in administrator account on startup:
 ## 📄 License
 
 This project is licensed under the **MIT License**.
-
