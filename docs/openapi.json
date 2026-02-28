@@ -14,6 +14,10 @@
   },
   "servers": [
     {
+      "url": "https://library-management-system-0dum.onrender.com/",
+      "description": "Render deployment"
+    },
+    {
       "url": "http://localhost:8000",
       "description": "Local development"
     }
