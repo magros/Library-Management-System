@@ -111,8 +111,12 @@ class TestDecodeAccessToken:
 
     def test_tampered_token_returns_none(self):
         token = create_access_token(data={"sub": "user123"})
-        # Flip a character in the signature
-        tampered = token[:-1] + ("A" if token[-1] != "A" else "B")
+        # Split into parts and corrupt the signature significantly
+        parts = token.rsplit(".", 1)
+        corrupted_sig = parts[1][::-1]  # reverse the signature
+        if corrupted_sig == parts[1]:
+            corrupted_sig = "X" + corrupted_sig[1:]
+        tampered = parts[0] + "." + corrupted_sig
         payload = decode_access_token(tampered)
         assert payload is None
 

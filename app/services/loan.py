@@ -217,6 +217,11 @@ async def get_loan_by_id(db: AsyncSession, loan_id: str) -> Optional[Loan]:
 
 def _calculate_late_fee(due_date: datetime, return_date: datetime) -> float:
     """Calculate late fee based on days overdue."""
+    # Normalize both datetimes to aware (UTC) to avoid naive vs aware comparison
+    if due_date.tzinfo is None:
+        due_date = due_date.replace(tzinfo=timezone.utc)
+    if return_date.tzinfo is None:
+        return_date = return_date.replace(tzinfo=timezone.utc)
     if return_date <= due_date:
         return 0.00
     overdue_days = (return_date - due_date).days
